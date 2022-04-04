@@ -1,0 +1,7 @@
+program Printing;
+
+var i : integer;
+
+begin { main program }
+    i := i * 3
+end.
