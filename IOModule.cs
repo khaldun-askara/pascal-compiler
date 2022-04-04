@@ -42,6 +42,7 @@ public class IOModule
     }
 
     public char Current_char { get => current_char; }
+    public Position Position { get => new Position(linenumber, charnumber); }
 
     public bool NextChar()
     {
@@ -65,5 +66,11 @@ public class IOModule
     public void AddError(uint error_code)
     {
         errors.Add(new Error(linenumber, charnumber, error_code));
+    }
+
+    public void PrintErrors(Action<string> Print)
+    {
+        foreach (var error in errors)
+            Print(error.ToString());
     }
 }
