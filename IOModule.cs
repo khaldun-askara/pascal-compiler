@@ -28,7 +28,7 @@ public struct Error
 }
 public class IOModule
 {
-    private uint linenumber = 0;
+    private uint linenumber = 1;
     private uint charnumber = 0;
     private string current_line;
     private char current_char;
