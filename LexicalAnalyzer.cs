@@ -83,13 +83,15 @@ public class LexicalAnalyzer
                 return null;
         }
 
+        current_position = iomodule.Position;
+
         // если буква или нижнее подчёркивание, то это либо ключевое слово, либо идентификатор, 
         // ЛИБО БУЛЕВОЕ ЗНАЧЕНИЕ АААААААААААААААААААААА
         if (char.IsLetter(ch.Value) || ch == '_')
         {
             string cur_token = string.Empty;
             // запоминаем до конца
-            while (ch.HasValue && (char.IsLetter(ch.Value) || ch == '_'))
+            while (ch.HasValue && (char.IsLetter(ch.Value) || char.IsDigit(ch.Value) || ch == '_'))
             {
                 cur_token += ch;
                 ch = iomodule.NextChar();
@@ -143,6 +145,7 @@ public class LexicalAnalyzer
             // с символа ' начинаются строковые константы!! их нужно читать до следующего '
             case '\'':
                 string cur_token = string.Empty;
+                ch = iomodule.NextChar();
                 while (ch.HasValue && ch != '\'')
                 {
                     cur_token += ch;
