@@ -16,11 +16,12 @@ public struct Error
 {
     private Position position;
     private uint errorcode;
-    public Error(uint line, uint position, uint errorcode)
+    public Error(Position position, uint errorcode)
     {
-        this.position = new Position(line, position);
+        this.position = position;
         this.errorcode = errorcode;
     }
+
 
     public Position Position { get => position; set => position = value; }
     public uint Errorcode { get => errorcode; set => errorcode = value; }
@@ -31,6 +32,7 @@ public class IOModule
     private uint linenumber = 1;
     private uint charnumber = 0;
     private string current_line;
+    private char current_char;
     StreamReader reader;
     List<Error> errors = new List<Error>();
 
@@ -41,6 +43,7 @@ public class IOModule
     }
 
     public Position Position { get => new Position(linenumber, charnumber); }
+    public char Current_char { get => current_char; }
 
     public char? NextChar()
     {
@@ -56,14 +59,14 @@ public class IOModule
         }
         if (current_line == null)
             return null;
-        char current_char = current_line[(int)charnumber];
+        current_char = current_line[(int)charnumber];
         charnumber++;
         return current_char;
     }
 
-    public void AddError(uint error_code)
+    public void AddError(uint error_code, Position position)
     {
-        errors.Add(new Error(linenumber, charnumber, error_code));
+        errors.Add(new Error(position, error_code));
     }
 
     public void PrintErrors(Action<string> Print)
