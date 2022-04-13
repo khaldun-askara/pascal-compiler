@@ -17,7 +17,11 @@ public class LexicalAnalyzer
         { "or", KeyWord.orsy },
         { "not", KeyWord.notsy},
         { "while", KeyWord.whilesy },
-        { "program", KeyWord.programsy }
+        { "program", KeyWord.programsy },
+        { "integer", KeyWord.integersy },
+        { "string", KeyWord.stringsy },
+        { "real", KeyWord.realsy },
+        { "boolean", KeyWord.booleansy }
     };
 
     public LexicalAnalyzer(IOModule iomodule)
@@ -91,7 +95,7 @@ public class LexicalAnalyzer
                 ch = iomodule.NextChar();
             }
             // ищем в ключевых словах, если не ключевое слово, то это идентификатор, его в таблицу имён
-            if (KeywordsTable.ContainsKey(cur_token))
+            if (KeywordsTable.ContainsKey(cur_token.ToLower()))
                 current_token = new CKeywordToken(current_position, KeywordsTable[cur_token]);
             else if (cur_token == "true" || cur_token == "false")
                 current_token = new CConstToken(current_position, KeyWord.constsy, new CBooleanVariant(Convert.ToBoolean(cur_token)));

@@ -38,4 +38,9 @@ public enum KeyWord
     rcomment, /* *) */
     assign, /* := */
     twopoints, /* .. */
+
+    integersy,
+    stringsy,
+    realsy,
+    booleansy
 }
