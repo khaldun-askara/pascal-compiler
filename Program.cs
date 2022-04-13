@@ -1,8 +1,9 @@
-﻿Console.WriteLine("Hello, World!");
-IOModule iomodule = new IOModule("emptyfile.txt");
-while (iomodule.NextChar())
+﻿IOModule iomodule = new IOModule("error2.txt");
+LexicalAnalyzer analyzer = new LexicalAnalyzer(iomodule);
+CToken token = analyzer.NextToken();
+while (token != null)
 {
-    Console.WriteLine(iomodule.Current_char);
-    iomodule.AddError(13);
+    Console.WriteLine(analyzer.Current_token.ToString());
+    token = analyzer.NextToken();
 }
 iomodule.PrintErrors(Console.WriteLine);
