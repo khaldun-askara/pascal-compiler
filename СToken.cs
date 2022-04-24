@@ -9,16 +9,17 @@ public abstract class CToken
 {
     private TokenType type;
     private Position position;
-    protected KeyWord current_token_code;
+    protected KeyWord code;
 
-    protected CToken(TokenType type, Position position, KeyWord current_token_code)
+    protected CToken(TokenType type, Position position, KeyWord code)
     {
         this.type = type;
         this.position = position;
-        this.current_token_code = current_token_code;
+        this.code = code;
     }
 
-    internal TokenType Type { get => type; }
+    public KeyWord Code { get => code; }
+    public TokenType Type { get => type; }
 
     public abstract override string ToString();
 }
@@ -43,7 +44,7 @@ public class CKeywordToken : CToken
 
     public override string ToString()
     {
-        return current_token_code.ToString();
+        return code.ToString();
     }
 }
 

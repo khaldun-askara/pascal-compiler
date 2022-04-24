@@ -2,7 +2,7 @@ public class FatalException : Exception { }
 public class LexicalAnalyzer
 {
     private char? ch;
-    private CToken current_token;
+    private CToken? current_token;
     private IOModule iomodule;
 
     private Dictionary<string, KeyWord> KeywordsTable = new Dictionary<string, KeyWord>()
@@ -30,7 +30,7 @@ public class LexicalAnalyzer
         ch = iomodule.NextChar();
     }
 
-    public CToken Current_token { get => current_token; }
+    public CToken? Current_token { get => current_token; }
 
     public CToken? NextToken()
     {
@@ -100,7 +100,7 @@ public class LexicalAnalyzer
             if (KeywordsTable.ContainsKey(cur_token.ToLower()))
                 current_token = new CKeywordToken(current_position, KeywordsTable[cur_token]);
             else if (cur_token == "true" || cur_token == "false")
-                current_token = new CConstToken(current_position, KeyWord.constsy, new CBooleanVariant(Convert.ToBoolean(cur_token)));
+                current_token = new CConstToken(current_position, KeyWord.constboolean, new CBooleanVariant(Convert.ToBoolean(cur_token)));
             else
                 // TODO: чё за таблица имён и с чем её едят 
                 current_token = new CIdentToken(current_position, KeyWord.identsy, cur_token);
@@ -132,11 +132,11 @@ public class LexicalAnalyzer
             if (is_error)
                 // 207 - слишком большая вещественная константа
                 // 203 - целая константа превышает предел
-                iomodule.AddError(is_double ? (uint)207 : (uint)203, current_position);
+                iomodule.AddError(current_position, is_double ? (uint)207 : (uint)203);
             if (is_double)
-                current_token = new CConstToken(current_position, KeyWord.constsy, new CRealVariant(realvalue));
+                current_token = new CConstToken(current_position, KeyWord.constreal, new CRealVariant(realvalue));
             else
-                current_token = new CConstToken(current_position, KeyWord.constsy, new CIntVariant(integervalue));
+                current_token = new CConstToken(current_position, KeyWord.constint, new CIntVariant(integervalue));
             return current_token;
         }
 
@@ -151,7 +151,7 @@ public class LexicalAnalyzer
                     cur_token += ch;
                     ch = iomodule.NextChar();
                 }
-                current_token = new CConstToken(current_position, KeyWord.constsy, new CStringVariant(cur_token));
+                current_token = new CConstToken(current_position, KeyWord.conststring, new CStringVariant(cur_token));
                 ch = iomodule.NextChar();
                 return current_token;
 
@@ -239,7 +239,7 @@ public class LexicalAnalyzer
 
             // ! тут должна быть ошибка ?? что тут делать блин
             default:
-                iomodule.AddError((uint)6, current_position);
+                iomodule.AddError(current_position, (uint)6);
                 ch = iomodule.NextChar();
                 throw new FatalException();
         }

@@ -15,23 +15,23 @@ public struct Position
 public struct Error
 {
     private Position position;
-    private uint errorcode;
-    public Error(Position position, uint errorcode)
+    private uint[] errorcodes;
+    public Error(Position position, uint[] errorcodes)
     {
         this.position = position;
-        this.errorcode = errorcode;
+        this.errorcodes = errorcodes;
     }
 
 
     public Position Position { get => position; set => position = value; }
-    public uint Errorcode { get => errorcode; set => errorcode = value; }
-    public override string ToString() => $"Error code: {errorcode}, {Position.ToString()}.";
+    public uint[] Errorcode { get => errorcodes; set => errorcodes = value; }
+    public override string ToString() => $"Error code: {String.Join(", ", errorcodes.Select(x => x.ToString()))}, {Position.ToString()}.";
 }
 public class IOModule
 {
     private uint linenumber = 1;
     private uint charnumber = 0;
-    private string current_line;
+    private string? current_line;
     private char current_char;
     StreamReader reader;
     List<Error> errors = new List<Error>();
@@ -64,7 +64,7 @@ public class IOModule
         return current_char;
     }
 
-    public void AddError(uint error_code, Position position)
+    public void AddError(Position position, params uint[] error_code)
     {
         errors.Add(new Error(position, error_code));
     }
