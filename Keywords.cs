@@ -3,6 +3,7 @@ public enum KeyWord
     elsesy = 32,
     dosy = 54,
     ifsy = 56,
+    thensy = 52,
     identsy = 2,
     programsy = 3,
     equal = 16,	/* = */

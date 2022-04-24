@@ -35,12 +35,25 @@ public class SyntacticAnalyzer
         this.iomodule = iomodule;
         this.lexicalAnalyzer = lexicalAnalyzer;
         this.cur_token = lexicalAnalyzer.NextToken();
+        this.position = iomodule.Position;
+    }
+
+    bool EOF()
+    {
+        if (cur_token == null)
+        {
+            // у Залоговой я не нашла обозначения Unexpected end of file, поэтому погуглила и нашла номер 10 вот тут: https://coderbook.ru/pascal-коды-ошибок/
+            // в учебнике вообще другие циферки, но мне короче всё равно
+            iomodule.AddError(position, (uint)10);
+            return true;
+        }
+        return false;
     }
 
     void Accept(params KeyWord[] expected_keywords)
     {
         bool is_ok = false;
-        if (cur_token != null)
+        if (!EOF())
             foreach (KeyWord expected in expected_keywords)
             {
                 is_ok |= expected == cur_token.Code;
@@ -57,8 +70,7 @@ public class SyntacticAnalyzer
     // <программа>::=program <имя>(<имя файла>{,<имя файла>}); <блок>.
     public void Program()
     {
-        position = iomodule.Position;
-        if (cur_token == null)
+        if (EOF())
         {
             iomodule.AddError(position, (uint)3);
             return;
@@ -94,7 +106,7 @@ public class SyntacticAnalyzer
     //                          | <пусто>
     void VariableDeclarationPart()
     {
-        if (cur_token != null && cur_token.Code == KeyWord.varsy)
+        if (!EOF() && cur_token.Code == KeyWord.varsy)
         {
             Accept(KeyWord.varsy);
             do
@@ -102,7 +114,7 @@ public class SyntacticAnalyzer
                 VariableDeclaration();
                 Accept(KeyWord.semicolon);
             }
-            while (cur_token != null && cur_token.Code == KeyWord.identsy);
+            while (!EOF() && cur_token.Code == KeyWord.identsy);
         }
     }
 
@@ -110,7 +122,7 @@ public class SyntacticAnalyzer
     void VariableDeclaration()
     {
         Accept(KeyWord.identsy);
-        while (cur_token != null && cur_token.Code == KeyWord.comma)
+        while (!EOF() && cur_token.Code == KeyWord.comma)
         {
             Accept(KeyWord.comma);
             Accept(KeyWord.identsy);
@@ -121,7 +133,7 @@ public class SyntacticAnalyzer
 
     void Type()
     {
-        if (cur_token != null)
+        if (!EOF())
             switch (cur_token.Code)
             {
                 case KeyWord.integersy:
@@ -150,7 +162,7 @@ public class SyntacticAnalyzer
     {
         Accept(KeyWord.beginsy);
         Statement();
-        while (cur_token != null && cur_token.Code == KeyWord.semicolon)
+        while (!EOF() && cur_token.Code == KeyWord.semicolon)
         {
             Accept(KeyWord.semicolon);
             Statement();
@@ -168,7 +180,7 @@ public class SyntacticAnalyzer
     // ээээ получается можно определять, какой стейтмент в данный момент, исходя из первого токена
     void Statement()
     {
-        if (cur_token != null)
+        if (!EOF())
             switch (cur_token.Code)
             {
                 // <простой оператор>::=<оператор присваивания>|
@@ -186,10 +198,10 @@ public class SyntacticAnalyzer
                     StatementPart();
                     break;
                 case KeyWord.ifsy:
-                    // TODO вызов if
+                    IfStatement();
                     break;
                 case KeyWord.whilesy:
-                    // TODO while
+                    WhileStatement();
                     break;
             }
     }
@@ -229,13 +241,21 @@ public class SyntacticAnalyzer
     void Expression()
     {
         SimpleExpression();
-        while (cur_token != null && relationalOperators.Contains(cur_token.Code))
+        while (!EOF() && relationalOperators.Contains(cur_token.Code))
         {
             RelationalOperator();
             SimpleExpression();
         }
     }
 
+    // <операция отношения>::=
+    //                       =|
+    //                       <>|
+    //                       <|
+    //                       <=|
+    //                       >=|
+    //                       >|
+    //                       in
     void RelationalOperator()
     {
         Accept(relationalOperators.ToArray());
@@ -244,17 +264,17 @@ public class SyntacticAnalyzer
     // <простое выражение>::=<знак><слагаемое>{<аддитивная операция><слагаемое>}
     void SimpleExpression()
     {
-        // if (cur_token != null)
+        // if (!EOF())
         //     switch (cur_token.Code)
         //     {
         //         case KeyWord.plus:
         //         case KeyWord.minus:
         //         case KeyWord.constint:
         //         case KeyWord.constreal:
-        if (cur_token != null && (cur_token.Code == KeyWord.plus || cur_token.Code == KeyWord.minus))
+        if (!EOF() && (cur_token.Code == KeyWord.plus || cur_token.Code == KeyWord.minus))
             Accept(cur_token.Code);
         Term();
-        while (cur_token != null && addingOperators.Contains(cur_token.Code))
+        while (!EOF() && addingOperators.Contains(cur_token.Code))
         {
             AddingOperator();
             Term();
@@ -262,6 +282,7 @@ public class SyntacticAnalyzer
         //         break;
         // }
     }
+    // <аддитивная операция>::= + | - | or
     void AddingOperator()
     {
         Accept(addingOperators.ToArray());
@@ -270,12 +291,18 @@ public class SyntacticAnalyzer
     void Term()
     {
         Factor();
-        while (cur_token != null && multiplyingOperators.Contains(cur_token.Code))
+        while (!EOF() && multiplyingOperators.Contains(cur_token.Code))
         {
             MultiplyingOperator();
             Factor();
         }
     }
+    // <мультипликативная операция>::=
+    //\                                *|
+    //                                 /|
+    //                                 div|
+    //                                 mod|
+    //                                 and
     void MultiplyingOperator()
     {
         Accept(multiplyingOperators.ToArray());
@@ -289,10 +316,10 @@ public class SyntacticAnalyzer
     // <константа без знака>::=<число без знака>|
     //                         <строка>|
     //                         <имя константы>|
-    //                         nil
+    ////                       nil
     void Factor()
     {
-        if (cur_token != null)
+        if (!EOF())
             switch (cur_token.Code)
             {
                 case KeyWord.identsy:
@@ -316,32 +343,38 @@ public class SyntacticAnalyzer
                     break;
             }
     }
-    // <выбирающий оператор>::=<условный оператор>|
-    //                         <оператор варианта>
-
+    // // <выбирающий оператор>::=<условный оператор>|
+    // //                         <оператор варианта>
     // <условный оператор>::= if <выражение> then <оператор>|
     //                        if <выражение> then <оператор> else <оператор>
+    void IfStatement()
+    {
+        Accept(KeyWord.ifsy);
+        Expression();
+        Accept(KeyWord.thensy);
+        if (!EOF() && cur_token.Code == KeyWord.beginsy)
+            StatementPart();
+        else Statement();
+        if (!EOF() && cur_token.Code == KeyWord.elsesy)
+        {
+            Accept(KeyWord.elsesy);
+            if (!EOF() && cur_token.Code == KeyWord.beginsy)
+                StatementPart();
+            else Statement();
+        }
+    }
     // <оператор цикла>::=<цикл с предусловием>|
-    //                    <цикл с постусловием>|
-    //                    <цикл с параметром>
-
+    // //                 <цикл с постусловием>|
+    // //                 <цикл с параметром>
     // <цикл с предусловием>::= while <выражение> do <оператор>
-
-    // <операция отношения>::=
-    //                       =|
-    //                       <>|
-    //                       <|
-    //                       <=|
-    //                       >=|
-    //                       >|
-    //                       in
-
-    // <аддитивная операция>::= + | - | or
-    // <мультипликативная операция>::=
-    //\                                *|
-    //                                 /|
-    //                                 div|
-    //                                 mod|
-    //                                 and
+    void WhileStatement()
+    {
+        Accept(KeyWord.whilesy);
+        Expression();
+        Accept(KeyWord.dosy);
+        if (!EOF() && cur_token.Code == KeyWord.beginsy)
+            StatementPart();
+        else Statement();
+    }
     #endregion StatementPart
 }
