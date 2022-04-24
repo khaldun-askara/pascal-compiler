@@ -1,30 +1,35 @@
 public enum KeyWord
 {
-    elsesy,
-    dosy,
-    ifsy,
-    programsy,
+    elsesy = 32,
+    dosy = 54,
+    ifsy = 56,
+    identsy = 2,
+    programsy = 3,
+    equal = 16,	/* = */
+    comma = 20, /* , */
+    semicolon = 14, /* ; */
+    colon = 5,  /* : */
+    point = 61, /* . */
+    endsy = 13,
+    beginsy = 17,
+    assign = 51, /* := */
+    rightpar = 9, /* ) */
+    lbracket = 11, /* [ */
+    rbracket = 12, /* ] */
+    twopoints = 74, /* .. */
     varsy,
-    beginsy,
-    endsy,
     whilesy,
     andsy,
     orsy,
     notsy,
-    identsy,
-    constsy,
+    constint,
+    constreal,
+    conststring,
+    constboolean,
     star,	/* * */
     slash,	/* / */
-    equal,	/* = */
-    comma, /* , */
-    semicolon, /* ; */
-    colon,  /* : */
-    point, /* . */
     arrow, /* ^ */
     leftpar, /* ( */
-    rightpar, /* ) */
-    lbracket, /* [ */
-    rbracket, /* ] */
     flpar, /* { */
     frpar, /* } */
     later, /* < */
@@ -36,11 +41,9 @@ public enum KeyWord
     minus, /* - */
     lcomment, /* (* */
     rcomment, /* *) */
-    assign, /* := */
-    twopoints, /* .. */
 
     integersy,
     stringsy,
     realsy,
-    booleansy
+    booleansy,
 }
