@@ -2,21 +2,18 @@ program whileLoop;
 var
    a: integer;
    s, str1, str2: string;
-
 {
     много
     строчный
     коммент
             арий
 }
-
 begin
    a := 10;
    while  a < 20  do
    begin
       a := a + 1;
    end;
-
    str1 := 'abc';
    str2 := '123';
    s := str1 + str2;

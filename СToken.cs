@@ -20,6 +20,7 @@ public abstract class CToken
 
     public KeyWord Code { get => code; }
     public TokenType Type { get => type; }
+    public Position Position { get => position; }
 
     public abstract override string ToString();
 }
