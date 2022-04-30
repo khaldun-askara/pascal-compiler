@@ -14,7 +14,8 @@ public enum KeyWord
     endsy = 13,
     beginsy = 17,
     assign = 51, /* := */
-    rightpar = 9, /* ) */
+    rightpar = 4, /* ) */
+    leftpar = 9, /* ( */
     lbracket = 11, /* [ */
     rbracket = 12, /* ] */
     twopoints = 74, /* .. */
@@ -30,7 +31,6 @@ public enum KeyWord
     star,	/* * */
     slash,	/* / */
     arrow, /* ^ */
-    leftpar, /* ( */
     flpar, /* { */
     frpar, /* } */
     later, /* < */

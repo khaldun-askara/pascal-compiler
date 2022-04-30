@@ -1,0 +1,20 @@
+program whileLoop;
+varsdasdasdasda
+   12: integer;
+   s, str1, str2: string;
+{
+    много
+    строчный
+    коммент
+            арий
+}
+begin
+   a := 10;
+   while  a < 20  do
+   begin
+      13 := a + 1;
+   end;
+   str1 := 'abc';
+   str2 := '123';
+   s := str1 + str2;
+end

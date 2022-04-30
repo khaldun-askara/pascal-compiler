@@ -1,0 +1,11 @@
+program whileLoop;
+var
+   a: integer;
+   s, str1, str2: string;
+{
+    много
+    строчный
+    коммент
+            арий
+}
+.
