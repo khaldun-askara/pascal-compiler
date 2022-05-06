@@ -9,6 +9,7 @@ public class LexicalAnalyzer
     {
         { "if", KeyWord.ifsy },
         { "do", KeyWord.dosy },
+        { "then", KeyWord.thensy },
         { "else", KeyWord.elsesy },
         { "var", KeyWord.varsy },
         { "begin", KeyWord.beginsy },

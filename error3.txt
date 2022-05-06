@@ -1,0 +1,66 @@
+program whileLoop;
+var
+   a: integer;
+   s, str, str: string; { тут ошибка с 2 str, это 101}
+   a: boolean; { тут тоже 101, потому что a дважды}
+   b: boolean;
+   c: real;
+   assign1: integer;
+   assign2: real;
+   assign3: boolean;
+   assign4: string;
+   assign5: fsdkfpdosf;
+begin
+   a := 10;
+   while  a < 20  do
+   begin
+      a := a + 1;
+   end;
+   str1 := 'abc'; { имя не описано 104 }
+   str2 := '123'; { имя не описано 104 }
+   s := str1 + str2;
+   assign1:=1; {нет ошибки int:=int}
+   assign1:=3.2; {конфликт типов 145}
+   assign1:=false; {конфликт типов 145}
+   assign1:='bruh'; {конфликт типов 145}
+   assign2:=2; {нет ошибки real:=int}
+   assign2:=3.2; {нет ошибки real:=real}
+   assign2:=false; {конфликт типов 145}
+   assign2:='bruh'; {конфликт типов 145}
+   assign3:=3; {конфликт типов 145}
+   assign3:=3.2; {конфликт типов 145}
+   assign3:=false; {нет ошибки bool:=bool}
+   assign3:='bruh'; {конфликт типов 145}
+   assign4:=4; {конфликт типов 145}
+   assign4:=3.2; {конфликт типов 145}
+   assign4:=false; {конфликт типов 145}
+   assign4:='bruh'; {нет ошибки string:=string}
+   if (assign1) then assign1:=1; {должен быть boolean, но тут int 135}
+   if (assign2) then assign2:=2; {должен быть boolean, но тут real 135}
+   if (assign3) then assign3:=false; {всё хорошо!!!!!!}
+   if (assign4) then assign4:='bruh'; {должен быть boolean, но тут string 135}
+   assign3:=assign1=assign1; {всё ок}
+   assign3:=assign1=assign2; {всё ок}
+   assign3:=assign1=assign3; {ошибка, сравниваются разные типы в операции отношения 186}
+   assign2:=assign1+assign2; {всё ок}
+   assign4:=assign4+assign4; {всё ок}
+   assign3:=assign3+assign3; {211 о нет нельзя складывать boolean}
+   assign2:=assign1-assign2; {всё ок}
+   assign4:=assign4-assign4; {211 нельзя вычитать string}
+   assign3:=assign3-assign3; {211 нельзя вычитать boolean!!!}
+   assign2:=assign1*assign2; {всё ок}
+   assign4:=assign4*assign4; {213 нельзя умножать строки}
+   assign3:=assign3*assign3; {213 нельзя умножать bool}
+   assign2:=assign1/assign2; {всё ок}
+   assign4:=assign4/assign4; {214}
+   assign3:=assign3/assign3; {214}
+   assign3:=assign1 or assign2; {210 только булевые операнды}
+   assign3:=assign1 and assign2; {210 только булевые операнды}
+   assign3:=assign3 or assign3; {всё хорошо}
+   assign3:=assign3 and assign3; {всё хорошо}
+   assign1:=-assign1;
+   assign2:=-assign2;
+   assign3:=-assign3; {184 boolean не может иметь знак!}
+   assign4:=-assign4; {184 и стринг тоже!}
+   assign5:=10;
+end.

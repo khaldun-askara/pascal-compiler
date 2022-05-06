@@ -4,6 +4,14 @@ public enum TokenType
     ttKeyword,
     ttConst
 }
+public enum VariableType
+{
+    vartInteger,
+    vartReal,
+    vartString,
+    vartBoolean,
+    vartUndef,
+}
 
 public abstract class CToken
 {
@@ -27,15 +35,19 @@ public abstract class CToken
 
 public class CIdentToken : CToken
 {
-    public string name;
+    private string name;
+    private VariableType variable_type;
     public CIdentToken(Position position, KeyWord code, string name) : base(TokenType.ttIdent, position, code)
     {
         this.name = name;
     }
 
+    public VariableType Variable_type { get => variable_type; set => variable_type = value; }
+    public string Name { get => name; set => name = value; }
+
     public override string ToString()
     {
-        return name;
+        return Name;
     }
 }
 

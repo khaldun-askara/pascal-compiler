@@ -2,9 +2,8 @@ public class Analyzer
 {
     private IOModule iomodule;
     private LexicalAnalyzer lexicalAnalyzer;
-
     CToken? cur_token;
-
+    private Dictionary<string, CIdentToken> identifiers = new Dictionary<string, CIdentToken>();
     private static List<KeyWord> relationalOperators = new List<KeyWord>
     {
         KeyWord.equal,         // =
@@ -28,16 +27,13 @@ public class Analyzer
         // div и mod не надо вроде делать
         KeyWord.andsy   //  and
     };
-
     public Analyzer(IOModule iomodule, LexicalAnalyzer lexicalAnalyzer)
     {
         this.iomodule = iomodule;
         this.lexicalAnalyzer = lexicalAnalyzer;
         this.cur_token = lexicalAnalyzer.NextToken();
     }
-
     bool EOF_error_added = false;
-
     bool EOF()
     {
         if (cur_token == null && !EOF_error_added)
@@ -50,7 +46,6 @@ public class Analyzer
         }
         return EOF_error_added;
     }
-
     void Accept(params KeyWord[] expected_keywords)
     {
         bool is_ok = false;
@@ -67,26 +62,22 @@ public class Analyzer
         if (!is_ok)
             iomodule.AddError(cur_token == null ? iomodule.Position : cur_token.Position, expected_keywords.Select(x => (uint)x).ToArray());
     }
-
     void Skip(int error_code, params KeyWord[] toKeywords)
     {
         iomodule.AddError(cur_token == null ? iomodule.Position : cur_token.Position, (uint)error_code);
         while (!EOF() && !toKeywords.ToList().Contains(cur_token.Code))
             cur_token = lexicalAnalyzer.NextToken();
     }
-
     void GotoFollowers(KeyWord[] followers)
     {
         if (!Belong(followers) && !EOF_error_added)
             // если честно, я не знаю, почему тут 6, но в учебнике Залоговой так, а я человек простой...
             Skip(6, followers);
     }
-
     bool Belong(params KeyWord[] starters)
     {
         return !EOF() && starters.ToList().Contains(cur_token.Code);
     }
-
     // <программа>::=program <имя>(<имя файла>{,<имя файла>}); <блок>.
     public void Program()
     {
@@ -109,7 +100,6 @@ public class Analyzer
         Block(KeyWord.point);
         Accept(KeyWord.point);
     }
-
     // <блок>: :=
     ////           <раздел меток>
     ////           <раздел констант>
@@ -130,7 +120,6 @@ public class Analyzer
             GotoFollowers(followers);
         }
     }
-
     #region VariableDeclarationPart
     // <раздел переменных> : = var <описание однотипных переменных>; {<описание однотипных переменных>;} 
     //                          | <пусто>
@@ -163,53 +152,217 @@ public class Analyzer
             Skip(2, followers.Append(KeyWord.identsy).ToArray());
         if (Belong(KeyWord.identsy))
         {
+            // текущие переменные одного типа
+            List<CIdentToken> current_variables = new List<CIdentToken>();
+            if (!EOF() && cur_token.Code == KeyWord.identsy)
+            {
+                string cur_name = ((CIdentToken)cur_token).Name;
+                // если такой идентификатор уже есть в ТИ, нужно выдать ошибку 101: имя описано повторно
+                if (identifiers.ContainsKey(cur_name))
+                    iomodule.AddError(cur_token.Position, 101);
+                else
+                    current_variables.Add((CIdentToken)cur_token);
+            }
             Accept(KeyWord.identsy);
             while (!EOF() && cur_token.Code == KeyWord.comma)
             {
                 Accept(KeyWord.comma);
+                if (!EOF() && cur_token.Code == KeyWord.identsy)
+                {
+                    string cur_name = ((CIdentToken)cur_token).Name;
+                    // если такой идентификатор уже есть в ТИ или в текущих переменных (например, "a, a: string"), 
+                    // нужно выдать ошибку 101: имя описано повторно
+                    if (identifiers.ContainsKey(cur_name) || current_variables.Find(x => x.Name == cur_name) != null)
+                        iomodule.AddError(cur_token.Position, 101);
+                    else
+                        current_variables.Add((CIdentToken)cur_token);
+                }
                 Accept(KeyWord.identsy);
             }
             Accept(KeyWord.colon);
-            Type(followers);
+            VariableType current_type = Type(followers);
+            foreach (CIdentToken token in current_variables)
+            {
+                token.Variable_type = current_type;
+                identifiers.Add(token.Name, token);
+            }
             GotoFollowers(followers);
         }
     }
 
-    void Type(params KeyWord[] followers)
+    VariableType Type(params KeyWord[] followers)
     {
         // if (EOF())
         //     return;
         if (!Belong(KeyWord.integersy, KeyWord.stringsy, KeyWord.realsy, KeyWord.booleansy))
             Skip(10, followers.Append(KeyWord.integersy)
-                              .Append(KeyWord.stringsy)
-                              .Append(KeyWord.realsy)
-                              .Append(KeyWord.booleansy).ToArray());
+                          .Append(KeyWord.stringsy)
+                          .Append(KeyWord.realsy)
+                          .Append(KeyWord.booleansy).ToArray());
+        VariableType result = VariableType.vartUndef;
         if (Belong(KeyWord.integersy, KeyWord.stringsy, KeyWord.realsy, KeyWord.booleansy))
         {
             switch (cur_token.Code)
             {
                 case KeyWord.integersy:
-                    Accept(KeyWord.integersy);
+                    result = VariableType.vartInteger;
                     break;
                 case KeyWord.stringsy:
-                    Accept(KeyWord.stringsy);
+                    result = VariableType.vartString;
                     break;
                 case KeyWord.realsy:
-                    Accept(KeyWord.realsy);
+                    result = VariableType.vartReal;
                     break;
                 case KeyWord.booleansy:
-                    Accept(KeyWord.booleansy);
+                    result = VariableType.vartBoolean;
                     break;
-                    // default:
-                    //     // 10:	ошибка в типе
-                    //     iomodule.AddError(cur_token.Position, (uint)10);
-                    //     break;
             }
+            Accept(KeyWord.integersy, KeyWord.stringsy, KeyWord.realsy, KeyWord.booleansy);
             GotoFollowers(followers);
         }
+        return result;
     }
     #endregion VariableDeclarationPart
-
+    #region SemanticFunctions
+    // эта функция проверяет, является ли type допустимым для if, while и not типом
+    // среди реализованных такой только Boolean
+    bool LogicalTest(VariableType type)
+    {
+        switch (type)
+        {
+            case VariableType.vartBoolean:
+                return true;
+            default:
+                return false;
+        }
+    }
+    // возвращает тип переменной, если такая была описана ранее в var
+    // если переменную не описывали, говорит ошибку и возвращает тип-ошибку.
+    VariableType GetIdentType()
+    {
+        VariableType result = VariableType.vartUndef;
+        if (cur_token == null)
+            return result;
+        string cur_name = ((CIdentToken)cur_token).Name;
+        // 104: имя не описано
+        if (!identifiers.ContainsKey(cur_name))
+        {
+            iomodule.AddError(cur_token.Position, 104);
+            ((CIdentToken)cur_token).Variable_type = VariableType.vartUndef;
+            identifiers.Add(cur_name, ((CIdentToken)cur_token));
+            result = VariableType.vartUndef;
+        }
+        else
+            result = identifiers[cur_name].Variable_type;
+        return result;
+    }
+    // функция проверяет, можно ли переменной первого типа assign выражение второго типа
+    bool CanAssign(VariableType first_type, VariableType second_type)
+    {
+        bool result = false;
+        if (first_type == VariableType.vartUndef || second_type == VariableType.vartUndef)
+            return result;
+        switch (first_type)
+        {
+            case VariableType.vartInteger:
+                result = second_type == VariableType.vartInteger;
+                break;
+            case VariableType.vartReal:
+                result = second_type == VariableType.vartReal || second_type == VariableType.vartInteger;
+                break;
+            case VariableType.vartString:
+                result = second_type == VariableType.vartString;
+                break;
+            case VariableType.vartBoolean:
+                result = second_type == VariableType.vartBoolean;
+                break;
+        }
+        return result;
+    }
+    // проверка корректности типов операндов first_type и second_type для передаваемой операции nullab_operation, и в случае ошибки добавление ошибки в позиции operator_pos
+    VariableType OperationType(VariableType first_type, VariableType second_type, Position operator_pos, KeyWord? nullab_operation)
+    {
+        VariableType result = VariableType.vartUndef;
+        if (nullab_operation == null)
+            return result;
+        if (first_type == VariableType.vartUndef || second_type == VariableType.vartUndef)
+            return VariableType.vartUndef;
+        KeyWord operation = nullab_operation.Value;
+        if (relationalOperators.Contains(operation))
+            if (first_type == second_type ||
+                first_type == VariableType.vartInteger && second_type == VariableType.vartReal ||
+                first_type == VariableType.vartReal && second_type == VariableType.vartInteger)
+                result = VariableType.vartBoolean;
+            else
+                // 186: несоответствие типов для операции отношения
+                iomodule.AddError(operator_pos, (uint)186);
+        if (addingOperators.Contains(operation) || multiplyingOperators.Contains(operation))
+            switch (operation)
+            {
+                // складывать можно все пары, кроме boolean, а разные типы только между числовыми
+                case KeyWord.plus:
+                    if (first_type == second_type && first_type != VariableType.vartBoolean)
+                        result = first_type;
+                    else if (first_type == VariableType.vartInteger && second_type == VariableType.vartReal ||
+                       first_type == VariableType.vartReal && second_type == VariableType.vartInteger)
+                        result = VariableType.vartReal;
+                    // 211: недопустимые типы операндов операции + или —
+                    else iomodule.AddError(operator_pos, (uint)211);
+                    break;
+                // вычитать, умножать и делить можно только числовые
+                case KeyWord.star:
+                case KeyWord.slash:
+                case KeyWord.minus:
+                    // если делить инт на инт, будет real
+                    if (first_type == second_type && first_type != VariableType.vartBoolean && first_type != VariableType.vartString)
+                        result = operation == KeyWord.slash ? VariableType.vartReal : first_type;
+                    // операции с real дают real
+                    else if (first_type == VariableType.vartInteger && second_type == VariableType.vartReal ||
+                       first_type == VariableType.vartReal && second_type == VariableType.vartInteger)
+                        result = VariableType.vartReal;
+                    else if (operation == KeyWord.minus)
+                        // 211: недопустимые типы операндов операции + или —
+                        iomodule.AddError(operator_pos, (uint)211);
+                    else if (operation == KeyWord.slash)
+                        //214: недопустимые типы операндов операции /
+                        iomodule.AddError(operator_pos, (uint)214);
+                    else if (operation == KeyWord.star)
+                        //213: недопустимые типы операндов операции *
+                        iomodule.AddError(operator_pos, (uint)213);
+                    break;
+                // логические только между boolean
+                case KeyWord.andsy:
+                case KeyWord.orsy:
+                    if (first_type == second_type && first_type == VariableType.vartBoolean)
+                        result = VariableType.vartBoolean;
+                    else
+                        // 210: операнды AND, NOT, OR должны быть булевыми
+                        iomodule.AddError(operator_pos, (uint)210);
+                    break;
+            }
+        return result;
+    }
+    // проверка корректности типа выражения, перед которым стоит знак (или не стоит)
+    VariableType OperationType(bool unary_sign, Position sign_pos, VariableType type)
+    {
+        if (!unary_sign)
+            return type;
+        VariableType result = VariableType.vartUndef;
+        switch (type)
+        {
+            case VariableType.vartInteger:
+            case VariableType.vartReal:
+                result = type;
+                break;
+            case VariableType.vartBoolean:
+            case VariableType.vartString:
+                // 184: элемент этого типа не может иметь знак
+                iomodule.AddError(sign_pos, (uint)184);
+                break;
+        }
+        return result;
+    }
+    #endregion SemanticFunctions
     #region StatementPart
     // <составной оператор>: := begin <оператор>{; <оператор>} end
     void StatementPart(params KeyWord[] followers)
@@ -291,9 +444,14 @@ public class Analyzer
             Skip(2, followers.Append(KeyWord.identsy).ToArray());
         if (Belong(KeyWord.identsy))
         {
+            VariableType ident_type = GetIdentType();
             Accept(KeyWord.identsy);
+            Position assignment_pos = cur_token == null ? iomodule.Position : cur_token.Position;
             Accept(KeyWord.assign);
-            Expression(followers);
+            VariableType expression_type = Expression(followers);
+            if (!CanAssign(ident_type, expression_type) && ident_type != VariableType.vartUndef && expression_type != VariableType.vartUndef)
+                // 145: конфликт типов
+                iomodule.AddError(assignment_pos, (uint)145);
             GotoFollowers(followers);
         }
     }
@@ -322,7 +480,7 @@ public class Analyzer
     //                              строки
     //                              булевой ээээ константы ???? почему этого в бнф нет?!
     //                              not
-    void Expression(params KeyWord[] followers)
+    VariableType Expression(params KeyWord[] followers)
     {
         // if (EOF())
         //     return;
@@ -341,40 +499,36 @@ public class Analyzer
         if (!Belong(starters.ToArray()))
             // 144: недопустимый тип выражения
             Skip(144, followers.Concat(starters).ToArray());
+        VariableType result = VariableType.vartUndef;
         if (Belong(starters.ToArray()))
         {
-            SimpleExpression(followers.Concat(relationalOperators).ToArray());
+            result = SimpleExpression(followers.Concat(relationalOperators).ToArray());
             if (!EOF() && relationalOperators.Contains(cur_token.Code))
             {
-                RelationalOperator(followers.Concat(starters).ToArray());
-                SimpleExpression(followers.Concat(relationalOperators).ToArray());
+                Position operator_pos = cur_token.Position;
+                KeyWord? relationalOperator = Operator(relationalOperators, followers.Concat(starters).ToArray());
+                result = OperationType(result, SimpleExpression(followers.Concat(relationalOperators).ToArray()), operator_pos, relationalOperator);
             }
             GotoFollowers(followers);
         }
+        return result;
     }
-
-    // <операция отношения>::=
-    //                       =|
-    //                       <>|
-    //                       <|
-    //                       <=|
-    //                       >=|
-    //                       >|
-    //                       in
-    void RelationalOperator(params KeyWord[] followers)
+    KeyWord? Operator(List<KeyWord> operators, params KeyWord[] followers)
     {
-        if (!Belong(relationalOperators.ToArray()))
+        if (!Belong(operators.ToArray()))
             // 183: запрещенная в данном контексте операция
-            Skip(183, followers.Concat(relationalOperators).ToArray());
-        if (Belong(relationalOperators.ToArray()))
+            Skip(183, followers.Concat(operators).ToArray());
+        KeyWord? operator_res = null;
+        if (Belong(operators.ToArray()))
         {
-            Accept(relationalOperators.ToArray());
+            operator_res = cur_token.Code;
+            Accept(operators.ToArray());
             GotoFollowers(followers);
         }
+        return operator_res;
     }
-
     // <простое выражение>::=<знак><слагаемое>{<аддитивная операция><слагаемое>}
-    void SimpleExpression(params KeyWord[] followers)
+    VariableType SimpleExpression(params KeyWord[] followers)
     {
         // if (EOF())
         //     return;
@@ -393,6 +547,7 @@ public class Analyzer
         if (!Belong(starters.ToArray()))
             // 144: недопустимый тип выражения
             Skip(144, followers.Concat(starters).ToArray());
+        VariableType result = VariableType.vartUndef;
         if (Belong(starters.ToArray()))
         {
             // if (!EOF())
@@ -402,33 +557,29 @@ public class Analyzer
             //         case KeyWord.minus:
             //         case KeyWord.constint:
             //         case KeyWord.constreal:
+            bool unary_sign = false;
+            // если сейчас не унарный знак, то эта позиция не будет использована в любом случае
+            Position unary_sign_pos = cur_token.Position;
             if (cur_token.Code == KeyWord.plus || cur_token.Code == KeyWord.minus)
+            {
                 Accept(cur_token.Code);
-            Term(followers.Concat(addingOperators).ToArray());
+                unary_sign = true;
+            }
+            result = OperationType(unary_sign, unary_sign_pos, Term(followers.Concat(addingOperators).ToArray()));
             while (!EOF() && addingOperators.Contains(cur_token.Code))
             {
-                AddingOperator(followers.Concat(starters).ToArray());
-                Term(followers.Concat(addingOperators).ToArray());
+                Position operator_pos = cur_token.Position;
+                KeyWord? addingOperator = Operator(addingOperators, followers.Concat(starters).ToArray());
+                result = OperationType(result, Term(followers.Concat(addingOperators).ToArray()), operator_pos, addingOperator);
             }
             //         break;
             // }
             GotoFollowers(followers);
         }
-    }
-    // <аддитивная операция>::= + | - | or
-    void AddingOperator(params KeyWord[] followers)
-    {
-        if (!Belong(addingOperators.ToArray()))
-            // 183: запрещенная в данном контексте операция
-            Skip(183, followers.Concat(addingOperators).ToArray());
-        if (Belong(addingOperators.ToArray()))
-        {
-            Accept(addingOperators.ToArray());
-            GotoFollowers(followers);
-        }
+        return result;
     }
     // <слагаемое>::=<множитель>{<мультипликативная операция><множитель>}
-    void Term(params KeyWord[] followers)
+    VariableType Term(params KeyWord[] followers)
     {
         // if (EOF())
         //     return;
@@ -445,33 +596,19 @@ public class Analyzer
         if (!Belong(starters.ToArray()))
             // 144: недопустимый тип выражения
             Skip(144, followers.Concat(starters).ToArray());
+        VariableType result = VariableType.vartUndef;
         if (Belong(starters.ToArray()))
         {
-            Factor(followers.Concat(multiplyingOperators).ToArray());
+            result = Factor(followers.Concat(multiplyingOperators).ToArray());
             while (!EOF() && multiplyingOperators.Contains(cur_token.Code))
             {
-                MultiplyingOperator(followers.Concat(starters).ToArray());
-                Factor(followers.Concat(multiplyingOperators).ToArray());
+                Position operator_pos = cur_token.Position;
+                KeyWord? multiplyingOperator = Operator(multiplyingOperators, followers.Concat(starters).ToArray());
+                result = OperationType(result, Factor(followers.Concat(multiplyingOperators).ToArray()), operator_pos, multiplyingOperator);
             }
             GotoFollowers(followers);
         }
-    }
-    // <мультипликативная операция>::=
-    //\                                *|
-    //                                 /|
-    //                                 div|
-    //                                 mod|
-    //                                 and
-    void MultiplyingOperator(params KeyWord[] followers)
-    {
-        if (!Belong(multiplyingOperators.ToArray()))
-            // 183: запрещенная в данном контексте операция
-            Skip(183, followers.Concat(multiplyingOperators).ToArray());
-        if (Belong(multiplyingOperators.ToArray()))
-        {
-            Accept(multiplyingOperators.ToArray());
-            GotoFollowers(followers);
-        }
+        return result;
     }
     // <множитель>::=<переменная>|
     //               <константа без знака>|
@@ -483,7 +620,7 @@ public class Analyzer
     //                         <строка>|
     //                         <имя константы>|
     ////                       nil
-    void Factor(params KeyWord[] followers)
+    VariableType Factor(params KeyWord[] followers)
     {
         // if (EOF())
         //     return;
@@ -499,29 +636,48 @@ public class Analyzer
         if (!Belong(starters.ToArray()))
             // 144: недопустимый тип выражения
             Skip(144, followers.Concat(starters).ToArray());
+        VariableType result = VariableType.vartUndef;
         if (Belong(starters.ToArray()))
         {
             switch (cur_token.Code)
             {
                 case KeyWord.identsy:
+                    result = GetIdentType();
+                    Accept(KeyWord.identsy);
+                    break;
                 case KeyWord.constboolean:
+                    result = VariableType.vartBoolean;
+                    Accept(KeyWord.constboolean);
+                    break;
                 case KeyWord.constint:
+                    result = VariableType.vartInteger;
+                    Accept(KeyWord.constint);
+                    break;
                 case KeyWord.constreal:
+                    result = VariableType.vartReal;
+                    Accept(KeyWord.constreal);
+                    break;
                 case KeyWord.conststring:
+                    result = VariableType.vartString;
                     Accept(cur_token.Code);
                     break;
                 case KeyWord.leftpar:
                     Accept(KeyWord.leftpar);
-                    Expression(followers.Append(KeyWord.rightpar).ToArray());
+                    result = Expression(followers.Append(KeyWord.rightpar).ToArray());
                     Accept(KeyWord.rightpar);
                     break;
                 case KeyWord.notsy:
+                    Position for_error = cur_token.Position;
                     Accept(KeyWord.notsy);
-                    Factor(followers);
+                    result = Factor(followers);
+                    if (!LogicalTest(result))
+                        // 210: операнды AND, NOT, OR должны быть булевыми
+                        iomodule.AddError(for_error, (uint)210);
                     break;
             }
             GotoFollowers(followers);
         }
+        return result;
     }
     // // <выбирающий оператор>::=<условный оператор>|
     // //                         <оператор варианта>
@@ -536,8 +692,13 @@ public class Analyzer
         if (Belong(KeyWord.ifsy))
         {
             Accept(KeyWord.ifsy);
-            Expression(followers.Append(KeyWord.thensy)
-                                .Append(KeyWord.elsesy).ToArray());
+            Position expr_start = cur_token == null ? iomodule.Position : cur_token.Position;
+            bool is_logic = LogicalTest(
+                Expression(followers.Append(KeyWord.thensy)
+                                    .Append(KeyWord.elsesy).ToArray()));
+            if (!is_logic)
+                //135: тип операнда должен быть BOOLEAN
+                iomodule.AddError(expr_start, (uint)135);
             Accept(KeyWord.thensy);
             Statement(followers.Append(KeyWord.elsesy).ToArray());
             if (!EOF() && cur_token.Code == KeyWord.elsesy)
@@ -561,7 +722,12 @@ public class Analyzer
         if (Belong(KeyWord.whilesy))
         {
             Accept(KeyWord.whilesy);
-            Expression(followers.Append(KeyWord.dosy).ToArray());
+            Position expr_start = cur_token == null ? iomodule.Position : cur_token.Position;
+            bool is_logic = LogicalTest(
+                Expression(followers.Append(KeyWord.dosy).ToArray()));
+            if (!is_logic)
+                //135: тип операнда должен быть BOOLEAN
+                iomodule.AddError(expr_start, (uint)135);
             Accept(KeyWord.dosy);
             Statement(followers);
             GotoFollowers(followers);
